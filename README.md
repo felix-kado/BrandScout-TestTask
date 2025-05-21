@@ -1,2 +1,2 @@
 # BrandScout-TestTask
-Тестовое задание для компании BrandScout
+Тестовое задание для компании BrandScout.
