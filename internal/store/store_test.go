@@ -9,7 +9,7 @@ import (
 func runStoreTests(t *testing.T, newStore func() QuoteStore) {
 	t.Run("Add and GetAll", func(t *testing.T) {
 		s := newStore()
-		q := model.QuoteNote{Author: "X", Quote: "Y"}
+		q := model.Quote{Author: "X", Text: "Y"}
 		added := s.Add(q)
 		assert.NotZero(t, added.ID)
 		assert.Equal(t, "X", added.Author)
@@ -19,16 +19,16 @@ func runStoreTests(t *testing.T, newStore func() QuoteStore) {
 
 	t.Run("Filter by Author", func(t *testing.T) {
 		s := newStore()
-		s.Add(model.QuoteNote{Author: "A", Quote: "1"})
-		s.Add(model.QuoteNote{Author: "B", Quote: "2"})
-		s.Add(model.QuoteNote{Author: "A", Quote: "3"})
+		s.Add(model.Quote{Author: "A", Text: "1"})
+		s.Add(model.Quote{Author: "B", Text: "2"})
+		s.Add(model.Quote{Author: "A", Text: "3"})
 		a := s.GetByAuthor("A")
 		assert.Len(t, a, 2)
 	})
 
 	t.Run("Delete", func(t *testing.T) {
 		s := newStore()
-		q := s.Add(model.QuoteNote{Author: "Del", Quote: "Me"})
+		q := s.Add(model.Quote{Author: "Del", Text: "Me"})
 		assert.True(t, s.Delete(q.ID))
 		assert.False(t, s.Delete(q.ID))
 	})
@@ -37,7 +37,7 @@ func runStoreTests(t *testing.T, newStore func() QuoteStore) {
 		s := newStore()
 		_, err := s.GetRandom()
 		assert.Error(t, err)
-		s.Add(model.QuoteNote{Author: "Rand", Quote: "Q"})
+		s.Add(model.Quote{Author: "Rand", Text: "Q"})
 		q, err := s.GetRandom()
 		assert.NoError(t, err)
 		assert.Equal(t, "Rand", q.Author)

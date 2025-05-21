@@ -22,7 +22,7 @@ func TestCreateQuoteHandler(t *testing.T) {
 	r := mux.NewRouter()
 	r.HandleFunc("/quotes", h.CreateQuote).Methods("POST")
 
-	quote := model.QuoteNote{Author: "H", Quote: "Hello"}
+	quote := model.Quote{Author: "H", Text: "Hello"}
 	body, _ := json.Marshal(quote)
 
 	req := httptest.NewRequest(http.MethodPost, "/quotes", bytes.NewReader(body))

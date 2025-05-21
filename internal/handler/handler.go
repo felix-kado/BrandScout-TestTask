@@ -18,7 +18,7 @@ func New(s store.QuoteStore) *Handler {
 }
 
 func (h *Handler) CreateQuote(w http.ResponseWriter, r *http.Request) {
-	var q model.QuoteNote
+	var q model.Quote
 	if err := json.NewDecoder(r.Body).Decode(&q); err != nil {
 		http.Error(w, "invalid input", http.StatusBadRequest)
 		return

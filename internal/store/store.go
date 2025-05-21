@@ -3,9 +3,9 @@ package store
 import "quote-api/internal/model"
 
 type QuoteStore interface {
-	Add(model.QuoteNote) model.QuoteNote
-	GetAll() []model.QuoteNote
-	GetByAuthor(author string) []model.QuoteNote
-	GetRandom() (model.QuoteNote, error)
+	Add(model.Quote) model.Quote
+	GetAll() []model.Quote
+	GetByAuthor(author string) []model.Quote
+	GetRandom() (model.Quote, error)
 	Delete(id int) bool
 }
