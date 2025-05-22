@@ -8,7 +8,7 @@
 ### 🚀 Запуск
 
 ```bash
-go run ./cmd/server
+go run ./cmd/quote-api
 ```
 
 ### 📦 Зависимости

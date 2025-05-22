@@ -1,82 +1,65 @@
-package handler
+package handler_test
 
 import (
-	"bytes"
-	"encoding/json"
 	"net/http"
-	"net/http/httptest"
+	"quote-api/internal/handler"
 	"strconv"
 	"testing"
 
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 
-	"quote-api/internal/model"
-	"quote-api/internal/service"
-	"quote-api/internal/store"
+	"quote-api/internal/testutil"
 )
 
-func setupHandlerTest() (*Handler, *mux.Router) {
-	svc := service.NewQuoteService(store.NewInMemoryStore())
-	h := New(svc)
-	r := mux.NewRouter()
-	r.HandleFunc("/quotes", h.CreateQuote).Methods("POST")
-	r.HandleFunc("/quotes", h.GetAllQuotes).Methods("GET")
-	r.HandleFunc("/quotes/random", h.GetRandomQuote).Methods("GET")
-	r.HandleFunc("/quotes/{id}", h.DeleteQuote).Methods("DELETE")
-	return h, r
-}
-
 func TestCreateAndGet(t *testing.T) {
-	_, r := setupHandlerTest()
+	h := handler.Router()
 
-	q := map[string]string{"author": "Tester", "quote": "Hello World"}
-	body, _ := json.Marshal(q)
-	req := httptest.NewRequest("POST", "/quotes", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	assert.Equal(t, http.StatusCreated, w.Code)
+	t.Run("CreateQuote", func(t *testing.T) {
+		payload := map[string]string{"author": "Tester", "quote": "Hello World"}
+		w := testutil.DoRequest(h, "POST", "/quotes", payload)
+		testutil.AssertStatus(t, w, http.StatusCreated)
 
-	var created model.Quote
-	err := json.NewDecoder(w.Body).Decode(&created)
-	assert.NoError(t, err)
+		var created struct {
+			ID     int    `json:"id"`
+			Author string `json:"author"`
+			Quote  string `json:"quote"`
+		}
+		testutil.ParseJSON(t, w, &created)
+		assert.Equal(t, "Tester", created.Author)
+	})
 
-	assert.Equal(t, "Tester", created.Author)
+	t.Run("GetAllQuotes", func(t *testing.T) {
+		w := testutil.DoRequest(h, "GET", "/quotes", nil)
+		testutil.AssertStatus(t, w, http.StatusOK)
 
-	getReq := httptest.NewRequest("GET", "/quotes", nil)
-	getW := httptest.NewRecorder()
-	r.ServeHTTP(getW, getReq)
-	assert.Equal(t, http.StatusOK, getW.Code)
-
-	var result []model.Quote
-	err = json.NewDecoder(getW.Body).Decode(&result)
-	assert.NoError(t, err)
-
-	assert.GreaterOrEqual(t, len(result), 1)
+		var list []struct {
+			ID     int    `json:"id"`
+			Author string `json:"author"`
+			Quote  string `json:"quote"`
+		}
+		testutil.ParseJSON(t, w, &list)
+		assert.GreaterOrEqual(t, len(list), 1)
+	})
 }
 
 func TestDeleteHandler(t *testing.T) {
-	_, r := setupHandlerTest()
+	h := handler.Router()
 
-	q := map[string]string{"author": "Del", "quote": "To remove"}
-	body, _ := json.Marshal(q)
-	req := httptest.NewRequest("POST", "/quotes", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	// Создаём цитату
+	w := testutil.DoRequest(h, "POST", "/quotes", map[string]string{"author": "Del", "quote": "To remove"})
+	testutil.AssertStatus(t, w, http.StatusCreated)
 
-	var created model.Quote
-	err := json.NewDecoder(w.Body).Decode(&created)
-	assert.NoError(t, err)
+	var created struct {
+		ID int `json:"id"`
+	}
+	testutil.ParseJSON(t, w, &created)
 
-	delReq := httptest.NewRequest("DELETE", "/quotes/"+strconv.Itoa(created.ID), nil)
-	delW := httptest.NewRecorder()
-	r.ServeHTTP(delW, delReq)
-	assert.Equal(t, http.StatusNoContent, delW.Code)
+	// Удаляем цитату
+	delPath := "/quotes/" + strconv.Itoa(created.ID)
+	wDel := testutil.DoRequest(h, "DELETE", delPath, nil)
+	testutil.AssertStatus(t, wDel, http.StatusNoContent)
 
-	delReq2 := httptest.NewRequest("DELETE", "/quotes/"+strconv.Itoa(created.ID), nil)
-	delW2 := httptest.NewRecorder()
-	r.ServeHTTP(delW2, delReq2)
-	assert.Equal(t, http.StatusNotFound, delW2.Code)
+	// Повторное удаление -> 404
+	wDel2 := testutil.DoRequest(h, "DELETE", delPath, nil)
+	testutil.AssertStatus(t, wDel2, http.StatusNotFound)
 }
