@@ -2,19 +2,20 @@ package handler
 
 import (
 	"encoding/json"
-	"github.com/gorilla/mux"
 	"net/http"
 	"quote-api/internal/model"
-	"quote-api/internal/store"
 	"strconv"
+
+	"github.com/gorilla/mux"
+	"quote-api/internal/service"
 )
 
 type Handler struct {
-	store store.QuoteStore
+	svc service.QuoteService
 }
 
-func New(s store.QuoteStore) *Handler {
-	return &Handler{store: s}
+func New(svc service.QuoteService) *Handler {
+	return &Handler{svc: svc}
 }
 
 func (h *Handler) CreateQuote(w http.ResponseWriter, r *http.Request) {
@@ -23,27 +24,34 @@ func (h *Handler) CreateQuote(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid input", http.StatusBadRequest)
 		return
 	}
-	added := h.store.Add(q)
+	q, err := h.svc.AddQuote(q.Author, q.Text)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(added)
+	if err = json.NewEncoder(w).Encode(q); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *Handler) GetAllQuotes(w http.ResponseWriter, r *http.Request) {
 	author := r.URL.Query().Get("author")
-	if author != "" {
-		json.NewEncoder(w).Encode(h.store.GetByAuthor(author))
-		return
+	quotes := h.svc.ListQuotes(author)
+	if err := json.NewEncoder(w).Encode(quotes); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 	}
-	json.NewEncoder(w).Encode(h.store.GetAll())
 }
 
 func (h *Handler) GetRandomQuote(w http.ResponseWriter, r *http.Request) {
-	q, err := h.store.GetRandom()
+	q, err := h.svc.RandomQuote()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	json.NewEncoder(w).Encode(q)
+	if err = json.NewEncoder(w).Encode(q); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *Handler) DeleteQuote(w http.ResponseWriter, r *http.Request) {
@@ -53,8 +61,8 @@ func (h *Handler) DeleteQuote(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid ID", http.StatusBadRequest)
 		return
 	}
-	if !h.store.Delete(id) {
-		http.Error(w, "quote not found", http.StatusNotFound)
+	if err = h.svc.DeleteQuote(id); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

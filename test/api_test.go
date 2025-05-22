@@ -10,105 +10,116 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
+
 	"quote-api/internal/handler"
-	"quote-api/internal/model"
+	"quote-api/internal/service"
 	"quote-api/internal/store"
 )
 
 func setupRouter() *mux.Router {
-	s := store.NewInMemoryStore()
-	h := handler.New(s)
-
+	svc := service.NewQuoteService(store.NewInMemoryStore())
+	h := handler.New(svc)
 	r := mux.NewRouter()
 	r.HandleFunc("/quotes", h.CreateQuote).Methods("POST")
 	r.HandleFunc("/quotes", h.GetAllQuotes).Methods("GET")
 	r.HandleFunc("/quotes/random", h.GetRandomQuote).Methods("GET")
 	r.HandleFunc("/quotes/{id}", h.DeleteQuote).Methods("DELETE")
-
 	return r
 }
 
-func TestAPI_CreateAndRetrieveQuote(t *testing.T) {
+func TestAPI_FullFlow(t *testing.T) {
 	r := setupRouter()
 
-	quote := model.Quote{Author: "Test", Text: "Test quote"}
-	body, _ := json.Marshal(quote)
-
-	req := httptest.NewRequest(http.MethodPost, "/quotes", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	resp := httptest.NewRecorder()
-	r.ServeHTTP(resp, req)
-	assert.Equal(t, http.StatusCreated, resp.Code)
-
-	var created model.Quote
-	_ = json.NewDecoder(resp.Body).Decode(&created)
-	assert.Equal(t, quote.Author, created.Author)
-	assert.NotZero(t, created.ID)
-}
-
-func TestAPI_FilterByAuthor(t *testing.T) {
-	r := setupRouter()
-
-	quotes := []model.Quote{
-		{Author: "A", Text: "One"},
-		{Author: "B", Text: "Two"},
-		{Author: "A", Text: "Three"},
+	quotes := []map[string]string{
+		{"author": "Alice", "quote": "First"},
+		{"author": "Bob", "quote": "Second"},
+		{"author": "Alice", "quote": "Third"},
 	}
 
+	var created []map[string]interface{}
 	for _, q := range quotes {
 		body, _ := json.Marshal(q)
-		req := httptest.NewRequest(http.MethodPost, "/quotes", bytes.NewReader(body))
+		req := httptest.NewRequest("POST", "/quotes", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		r.ServeHTTP(httptest.NewRecorder(), req)
+		resp := httptest.NewRecorder()
+		r.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusCreated, resp.Code)
+		var result map[string]interface{}
+		err := json.NewDecoder(resp.Body).Decode(&result)
+		assert.NoError(t, err)
+		created = append(created, result)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/quotes?author=A", nil)
+	// Список всех цитат
+	req := httptest.NewRequest("GET", "/quotes", nil)
 	resp := httptest.NewRecorder()
 	r.ServeHTTP(resp, req)
 	assert.Equal(t, http.StatusOK, resp.Code)
 
-	var result []model.Quote
-	_ = json.NewDecoder(resp.Body).Decode(&result)
-	assert.Len(t, result, 2)
-}
+	var all []map[string]interface{}
+	err := json.NewDecoder(resp.Body).Decode(&all)
+	assert.NoError(t, err)
 
-func TestAPI_RandomQuote(t *testing.T) {
-	r := setupRouter()
-	quote := model.Quote{Author: "Rand", Text: "Surprise"}
-	body, _ := json.Marshal(quote)
-	postReq := httptest.NewRequest(http.MethodPost, "/quotes", bytes.NewReader(body))
-	postReq.Header.Set("Content-Type", "application/json")
-	r.ServeHTTP(httptest.NewRecorder(), postReq)
+	assert.Len(t, all, 3)
 
-	randomReq := httptest.NewRequest(http.MethodGet, "/quotes/random", nil)
-	randomResp := httptest.NewRecorder()
-	r.ServeHTTP(randomResp, randomReq)
-	assert.Equal(t, http.StatusOK, randomResp.Code)
+	// Фильтр по автору
+	req = httptest.NewRequest("GET", "/quotes?author=Alice", nil)
+	resp = httptest.NewRecorder()
+	r.ServeHTTP(resp, req)
+	assert.Equal(t, http.StatusOK, resp.Code)
 
-	var got model.Quote
-	_ = json.NewDecoder(randomResp.Body).Decode(&got)
-	assert.Equal(t, "Rand", got.Author)
-}
+	var filtered []map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&filtered)
+	assert.NoError(t, err)
 
-func TestAPI_DeleteQuote(t *testing.T) {
-	r := setupRouter()
-	quote := model.Quote{Author: "Del", Text: "To be deleted"}
-	body, _ := json.Marshal(quote)
-	postReq := httptest.NewRequest(http.MethodPost, "/quotes", bytes.NewReader(body))
-	postReq.Header.Set("Content-Type", "application/json")
-	postResp := httptest.NewRecorder()
-	r.ServeHTTP(postResp, postReq)
+	assert.Len(t, filtered, 2)
 
-	var created model.Quote
-	_ = json.NewDecoder(postResp.Body).Decode(&created)
+	// Случайная цитата
+	req = httptest.NewRequest("GET", "/quotes/random", nil)
+	resp = httptest.NewRecorder()
+	r.ServeHTTP(resp, req)
+	assert.Equal(t, http.StatusOK, resp.Code)
 
-	delReq := httptest.NewRequest(http.MethodDelete, "/quotes/"+strconv.Itoa(created.ID), nil)
+	var random map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&random)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, random["quote"])
+
+	// Удалить цитату
+	id := int(created[0]["id"].(float64))
+	delReq := httptest.NewRequest("DELETE", "/quotes/"+strconv.Itoa(id), nil)
 	delResp := httptest.NewRecorder()
 	r.ServeHTTP(delResp, delReq)
 	assert.Equal(t, http.StatusNoContent, delResp.Code)
 
-	delReq2 := httptest.NewRequest(http.MethodDelete, "/quotes/"+strconv.Itoa(created.ID), nil)
+	// Удалить её же опять -> 404
+	delReq2 := httptest.NewRequest("DELETE", "/quotes/"+strconv.Itoa(id), nil)
 	delResp2 := httptest.NewRecorder()
 	r.ServeHTTP(delResp2, delReq2)
 	assert.Equal(t, http.StatusNotFound, delResp2.Code)
+}
+
+func TestAPI_InvalidInput(t *testing.T) {
+	r := setupRouter()
+
+	// --- Invalid POST (missing body)
+	req := httptest.NewRequest("POST", "/quotes", nil)
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	r.ServeHTTP(resp, req)
+	assert.Equal(t, http.StatusBadRequest, resp.Code)
+
+	// --- Invalid DELETE ID
+	req = httptest.NewRequest("DELETE", "/quotes/abc", nil)
+	resp = httptest.NewRecorder()
+	r.ServeHTTP(resp, req)
+	assert.Equal(t, http.StatusBadRequest, resp.Code)
+
+	// --- Рандомная цитата из пустой памяти
+	rEmpty := setupRouter()
+	req = httptest.NewRequest("GET", "/quotes/random", nil)
+	resp = httptest.NewRecorder()
+	rEmpty.ServeHTTP(resp, req)
+	assert.Equal(t, http.StatusNotFound, resp.Code)
 }
