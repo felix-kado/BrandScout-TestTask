@@ -23,10 +23,10 @@ func NewQuoteService(st store.QuoteStore) QuoteService {
 
 func (s *service) AddQuote(ctx context.Context, author, text string) (model.Quote, error) {
 	if author == "" {
-		return model.Quote{}, model.ErrEmptyAuthor
+		return model.Quote{}, model.ErrEmptyQuoteAuthor
 	}
 	if text == "" {
-		return model.Quote{}, model.ErrEmptyText
+		return model.Quote{}, model.ErrEmptyQuoteText
 	}
 
 	q := s.store.Add(ctx, model.Quote{Author: author, Text: text})

@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"quote-api/internal/model"
 	"quote-api/internal/store"
 	"testing"
@@ -11,11 +10,11 @@ import (
 
 func TestQuoteService(t *testing.T) {
 	svc := NewQuoteService(store.NewInMemoryStore())
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("AddQuote validates input", func(t *testing.T) {
 		_, err := svc.AddQuote(ctx, "", "")
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, model.ErrEmptyQuoteAuthor)
 	})
 
 	t.Run("AddQuote returns added quote", func(t *testing.T) {
@@ -40,13 +39,13 @@ func TestQuoteService(t *testing.T) {
 	t.Run("RandomQuote returns error when empty", func(t *testing.T) {
 		emptySvc := NewQuoteService(store.NewInMemoryStore())
 		_, err := emptySvc.RandomQuote(ctx)
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, model.ErrQuoteNotFound)
 	})
 
 	t.Run("DeleteQuote works and errors when not found", func(t *testing.T) {
 		q, _ := svc.AddQuote(ctx, "ToDel", "Remove me")
 		assert.NoError(t, svc.DeleteQuote(ctx, q.ID))
 		exErr := svc.DeleteQuote(ctx, q.ID)
-		assert.Equal(t, model.ErrQuoteNotFound, exErr)
+		assert.ErrorIs(t, exErr, model.ErrQuoteNotFound)
 	})
 }

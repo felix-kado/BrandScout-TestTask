@@ -58,7 +58,7 @@ func (h *Handler) DeleteQuote(w http.ResponseWriter, r *http.Request) {
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		errorResponse(w, model.ErrInvalidID)
+		errorResponse(w, model.ErrInvalidQuoteID)
 		return
 	}
 	if err = h.svc.DeleteQuote(ctx, id); err != nil {

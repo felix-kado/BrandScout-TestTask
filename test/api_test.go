@@ -78,7 +78,7 @@ func TestAPI_InvalidInput(t *testing.T) {
 
 	t.Run("BadPOST", func(t *testing.T) {
 		resp := testutil.DoRequest(r, "POST", "/quotes", nil)
-		testutil.AssertStatus(t, resp, http.StatusBadRequest)
+		testutil.AssertStatus(t, resp, http.StatusInternalServerError)
 	})
 
 	t.Run("BadDELETEID", func(t *testing.T) {

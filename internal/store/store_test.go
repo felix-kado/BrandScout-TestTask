@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,7 +10,7 @@ import (
 func runStoreTests(t *testing.T, newStore func() QuoteStore) {
 	t.Run("Add and GetAll", func(t *testing.T) {
 		s := newStore()
-		ctx := context.Background()
+		ctx := t.Context()
 
 		q := model.Quote{Author: "X", Text: "Y"}
 		added := s.Add(ctx, q)
@@ -24,7 +23,7 @@ func runStoreTests(t *testing.T, newStore func() QuoteStore) {
 
 	t.Run("Filter by Author", func(t *testing.T) {
 		s := newStore()
-		ctx := context.Background()
+		ctx := t.Context()
 
 		s.Add(ctx, model.Quote{Author: "A", Text: "1"})
 		s.Add(ctx, model.Quote{Author: "B", Text: "2"})
@@ -36,7 +35,7 @@ func runStoreTests(t *testing.T, newStore func() QuoteStore) {
 
 	t.Run("Delete", func(t *testing.T) {
 		s := newStore()
-		ctx := context.Background()
+		ctx := t.Context()
 
 		q := s.Add(ctx, model.Quote{Author: "Del", Text: "Me"})
 		assert.True(t, s.Delete(ctx, q.ID))
@@ -45,7 +44,7 @@ func runStoreTests(t *testing.T, newStore func() QuoteStore) {
 
 	t.Run("GetRandom", func(t *testing.T) {
 		s := newStore()
-		ctx := context.Background()
+		ctx := t.Context()
 
 		_, err := s.GetRandom(ctx)
 		assert.Error(t, err)
