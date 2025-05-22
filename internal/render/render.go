@@ -11,7 +11,6 @@ func JSON(w http.ResponseWriter, status int, v interface{}) {
 	w.WriteHeader(status)
 
 	if err := json.NewEncoder(w).Encode(v); err != nil {
-
 		log.Printf("render.JSON: failed to encode response: %v", err)
 	}
 }

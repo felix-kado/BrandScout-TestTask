@@ -3,6 +3,8 @@ package test
 import (
 	"net/http"
 	"quote-api/internal/handler"
+	"quote-api/internal/service"
+	"quote-api/internal/store"
 	"strconv"
 	"testing"
 
@@ -12,7 +14,9 @@ import (
 )
 
 func TestAPI_FullFlow(t *testing.T) {
-	r := handler.Router()
+	st := store.NewInMemoryStore()
+	svc := service.NewQuoteService(st)
+	r := handler.NewRouter(svc)
 
 	t.Run("CreateQuotes", func(t *testing.T) {
 		cases := []struct{ Author, Quote string }{{"Alice", "First"}, {"Bob", "Second"}, {"Alice", "Third"}}
@@ -68,7 +72,9 @@ func TestAPI_FullFlow(t *testing.T) {
 }
 
 func TestAPI_InvalidInput(t *testing.T) {
-	r := handler.Router()
+	st := store.NewInMemoryStore()
+	svc := service.NewQuoteService(st)
+	r := handler.NewRouter(svc)
 
 	t.Run("BadPOST", func(t *testing.T) {
 		resp := testutil.DoRequest(r, "POST", "/quotes", nil)
@@ -81,8 +87,7 @@ func TestAPI_InvalidInput(t *testing.T) {
 	})
 
 	t.Run("RandomOnEmptyStore", func(t *testing.T) {
-		rEmpty := handler.Router()
-		resp := testutil.DoRequest(rEmpty, "GET", "/quotes/random", nil)
+		resp := testutil.DoRequest(r, "GET", "/quotes/random", nil)
 		testutil.AssertStatus(t, resp, http.StatusNotFound)
 	})
 }

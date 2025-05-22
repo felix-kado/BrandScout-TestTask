@@ -1,4 +1,3 @@
-// Package testutil предоставляет утилитные функции для HTTP-тестирования
 package testutil
 
 import (

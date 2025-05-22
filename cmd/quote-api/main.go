@@ -8,12 +8,17 @@ import (
 	"os"
 	"os/signal"
 	"quote-api/internal/handler"
+	"quote-api/internal/service"
+	"quote-api/internal/store"
 	"syscall"
 	"time"
 )
 
 func main() {
-	r := handler.Router()
+	st := store.NewInMemoryStore()
+	svc := service.NewQuoteService(st)
+	r := handler.NewRouter(svc)
+
 	srv := &http.Server{
 		Addr:    ":8080",
 		Handler: r,

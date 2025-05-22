@@ -1,7 +1,8 @@
 package service
 
 import (
-	"errors"
+	"context"
+	"quote-api/internal/model"
 	"quote-api/internal/store"
 	"testing"
 
@@ -9,41 +10,43 @@ import (
 )
 
 func TestQuoteService(t *testing.T) {
-	s := NewQuoteService(store.NewInMemoryStore())
+	svc := NewQuoteService(store.NewInMemoryStore())
+	ctx := context.Background()
 
 	t.Run("AddQuote validates input", func(t *testing.T) {
-		_, err := s.AddQuote("", "")
+		_, err := svc.AddQuote(ctx, "", "")
 		assert.Error(t, err)
 	})
 
 	t.Run("AddQuote returns added quote", func(t *testing.T) {
-		q, err := s.AddQuote("Author", "Text")
+		q, err := svc.AddQuote(ctx, "Author", "Text")
 		assert.NoError(t, err)
 		assert.Equal(t, "Author", q.Author)
 		assert.Equal(t, "Text", q.Text)
 	})
 
 	t.Run("ListQuotes filters by author", func(t *testing.T) {
-		_, err := s.AddQuote("Alice", "A1")
+		_, err := svc.AddQuote(ctx, "Alice", "A1")
 		assert.NoError(t, err)
-		_, err = s.AddQuote("Bob", "B1")
+		_, err = svc.AddQuote(ctx, "Bob", "B1")
 		assert.NoError(t, err)
-		_, err = s.AddQuote("Alice", "A2")
+		_, err = svc.AddQuote(ctx, "Alice", "A2")
 		assert.NoError(t, err)
 
-		aliceQuotes := s.ListQuotes("Alice")
+		aliceQuotes := svc.ListQuotes(ctx, "Alice")
 		assert.Len(t, aliceQuotes, 2)
 	})
 
 	t.Run("RandomQuote returns error when empty", func(t *testing.T) {
-		emptyService := NewQuoteService(store.NewInMemoryStore())
-		_, err := emptyService.RandomQuote()
+		emptySvc := NewQuoteService(store.NewInMemoryStore())
+		_, err := emptySvc.RandomQuote(ctx)
 		assert.Error(t, err)
 	})
 
-	t.Run("DeleteQuote works", func(t *testing.T) {
-		q, _ := s.AddQuote("ToDel", "Remove me")
-		assert.NoError(t, s.DeleteQuote(q.ID))
-		assert.Equal(t, errors.New("quote not found"), s.DeleteQuote(q.ID))
+	t.Run("DeleteQuote works and errors when not found", func(t *testing.T) {
+		q, _ := svc.AddQuote(ctx, "ToDel", "Remove me")
+		assert.NoError(t, svc.DeleteQuote(ctx, q.ID))
+		exErr := svc.DeleteQuote(ctx, q.ID)
+		assert.Equal(t, model.ErrQuoteNotFound, exErr)
 	})
 }

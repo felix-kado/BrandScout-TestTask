@@ -1,8 +1,9 @@
-package handler_test
+package handler
 
 import (
 	"net/http"
-	"quote-api/internal/handler"
+	"quote-api/internal/service"
+	"quote-api/internal/store"
 	"strconv"
 	"testing"
 
@@ -12,7 +13,9 @@ import (
 )
 
 func TestCreateAndGet(t *testing.T) {
-	h := handler.Router()
+	st := store.NewInMemoryStore()
+	svc := service.NewQuoteService(st)
+	h := NewRouter(svc)
 
 	t.Run("CreateQuote", func(t *testing.T) {
 		payload := map[string]string{"author": "Tester", "quote": "Hello World"}
@@ -43,8 +46,9 @@ func TestCreateAndGet(t *testing.T) {
 }
 
 func TestDeleteHandler(t *testing.T) {
-	h := handler.Router()
-
+	st := store.NewInMemoryStore()
+	svc := service.NewQuoteService(st)
+	h := NewRouter(svc)
 	// Создаём цитату
 	w := testutil.DoRequest(h, "POST", "/quotes", map[string]string{"author": "Del", "quote": "To remove"})
 	testutil.AssertStatus(t, w, http.StatusCreated)

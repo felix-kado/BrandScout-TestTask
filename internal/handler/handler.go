@@ -15,20 +15,21 @@ type Handler struct {
 	svc service.QuoteService
 }
 
-func New(svc service.QuoteService) *Handler {
+func NewHandler(svc service.QuoteService) *Handler {
 	return &Handler{svc: svc}
 }
 
 func (h *Handler) CreateQuote(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	var req model.Quote
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		render.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid input"})
+		errorResponse(w, err)
 		return
 	}
 
-	q, err := h.svc.AddQuote(req.Author, req.Text)
+	q, err := h.svc.AddQuote(ctx, req.Author, req.Text)
 	if err != nil {
-		render.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		errorResponse(w, err)
 		return
 	}
 
@@ -36,29 +37,32 @@ func (h *Handler) CreateQuote(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetAllQuotes(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	author := r.URL.Query().Get("author")
-	quotes := h.svc.ListQuotes(author)
+	quotes := h.svc.ListQuotes(ctx, author)
 	render.JSON(w, http.StatusOK, quotes)
 }
 
 func (h *Handler) GetRandomQuote(w http.ResponseWriter, r *http.Request) {
-	q, err := h.svc.RandomQuote()
+	ctx := r.Context()
+	q, err := h.svc.RandomQuote(ctx)
 	if err != nil {
-		render.JSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		errorResponse(w, err)
 		return
 	}
 	render.JSON(w, http.StatusOK, q)
 }
 
 func (h *Handler) DeleteQuote(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	idStr := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		render.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid ID"})
+		errorResponse(w, model.ErrInvalidID)
 		return
 	}
-	if err = h.svc.DeleteQuote(id); err != nil {
-		render.JSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+	if err = h.svc.DeleteQuote(ctx, id); err != nil {
+		errorResponse(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

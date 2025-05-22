@@ -1,7 +1,7 @@
 package store
 
 import (
-	"errors"
+	"context"
 	"math/rand"
 	"quote-api/internal/model"
 	"sync"
@@ -15,22 +15,22 @@ import (
 
 type inMemoryStore struct {
 	sync.RWMutex
-	quotes map[int]model.Quote // основное хранение цитат
-	ids    []int               // массив ID, чтобы можно было за O(1) взять случайный элемент
-	idIdx  map[int]int         // ID -> индекс в ids
+	quotes map[int]model.Quote
+	ids    []int
+	idIdx  map[int]int
 	nextID int
 }
 
 func NewInMemoryStore() QuoteStore {
 	return &inMemoryStore{
 		quotes: make(map[int]model.Quote),
-		ids:    make([]int, 0),
+		ids:    []int{},
 		idIdx:  make(map[int]int),
 		nextID: 1,
 	}
 }
 
-func (s *inMemoryStore) Add(q model.Quote) model.Quote {
+func (s *inMemoryStore) Add(ctx context.Context, q model.Quote) model.Quote {
 	if q.Author == "" || q.Text == "" {
 		return model.Quote{}
 	}
@@ -45,7 +45,7 @@ func (s *inMemoryStore) Add(q model.Quote) model.Quote {
 	return q
 }
 
-func (s *inMemoryStore) GetAll() []model.Quote {
+func (s *inMemoryStore) GetAll(ctx context.Context) []model.Quote {
 	s.RLock()
 	defer s.RUnlock()
 	result := make([]model.Quote, 0, len(s.quotes))
@@ -55,7 +55,7 @@ func (s *inMemoryStore) GetAll() []model.Quote {
 	return result
 }
 
-func (s *inMemoryStore) GetByAuthor(author string) []model.Quote {
+func (s *inMemoryStore) GetByAuthor(ctx context.Context, author string) []model.Quote {
 	s.RLock()
 	defer s.RUnlock()
 	var result []model.Quote
@@ -67,17 +67,17 @@ func (s *inMemoryStore) GetByAuthor(author string) []model.Quote {
 	return result
 }
 
-func (s *inMemoryStore) GetRandom() (model.Quote, error) {
+func (s *inMemoryStore) GetRandom(ctx context.Context) (model.Quote, error) {
 	s.RLock()
 	defer s.RUnlock()
 	if len(s.ids) == 0 {
-		return model.Quote{}, errors.New("no quotes available")
+		return model.Quote{}, model.ErrQuoteNotFound
 	}
 	randomID := s.ids[rand.Intn(len(s.ids))]
 	return s.quotes[randomID], nil
 }
 
-func (s *inMemoryStore) Delete(id int) bool {
+func (s *inMemoryStore) Delete(ctx context.Context, id int) bool {
 	s.Lock()
 	defer s.Unlock()
 	idx, exists := s.idIdx[id]
